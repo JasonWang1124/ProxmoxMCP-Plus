@@ -406,41 +406,6 @@ async def test_get_storage(server, mock_proxmox):
     assert "ceph" in text
 
 @pytest.mark.asyncio
-async def test_list_isos_skips_offline_node(server, mock_proxmox):
-    """Test list_isos skips nodes that error."""
-    proxmox = mock_proxmox.return_value
-    proxmox.nodes.get.return_value = [
-        {"node": "node1", "status": "online"},
-        {"node": "node2", "status": "offline"},
-    ]
-
-    node1_api = Mock()
-    node1_api.storage.get.return_value = [
-        {"storage": "local", "content": "iso"},
-    ]
-    node1_api.storage.return_value.content.get.return_value = [
-        {"volid": "local:iso/test.iso", "size": 1024},
-    ]
-
-    node2_api = Mock()
-    node2_api.storage.get.side_effect = Exception("offline")
-
-    def nodes_side_effect(node_name=None):
-        if node_name == "node1":
-            return node1_api
-        if node_name == "node2":
-            return node2_api
-        return Mock()
-
-    proxmox.nodes.side_effect = nodes_side_effect
-
-    response = await server.mcp.call_tool("list_isos", {})
-    text = response[0].text
-    assert "test.iso" in text
-    assert "node1" in text
-    assert "node2" not in text
-
-@pytest.mark.asyncio
 async def test_list_backups_skips_offline_node(server, mock_proxmox):
     """Test list_backups skips nodes that error."""
     proxmox = mock_proxmox.return_value

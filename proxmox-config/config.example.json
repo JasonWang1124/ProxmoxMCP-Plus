@@ -1,30 +1,30 @@
 {
     "proxmox": {
-        "host": "your-proxmox-host-ip",
+        "host": "192.168.1.10",
         "port": 8006,
-        "verify_ssl": true,
+        "verify_ssl": false,
         "service": "PVE"
     },
     "auth": {
-        "user": "username@pve",
-        "token_name": "your-token-name",
-        "token_value": "your-token-value"
+        "user": "claude@pve",
+        "token_name": "mcp",
+        "token_value": "REPLACE_ME"
     },
     "logging": {
-        "level": "DEBUG",
+        "level": "INFO",
         "format": "%(asctime)s - %(name)s - %(levelname)s - %(message)s",
-        "file": "proxmox_mcp.log"
+        "file": null
     },
     "mcp": {
         "host": "127.0.0.1",
-        "port": 8000,
-        "transport": "STDIO"
+        "port": 8812,
+        "transport": "STREAMABLE"
     },
     "security": {
-        "dev_mode": false
+        "dev_mode": true
     },
     "command_policy": {
-        "mode": "deny_all",
+        "mode": "audit_only",
         "allow_patterns": [],
         "deny_patterns": [
             "(^|\\s)rm\\s+-rf(\\s|$)",

@@ -270,51 +270,6 @@ Example:
 rollback_snapshot node='pve' vmid='100' snapname='before-update'
 """
 
-# ISO and Template tool descriptions
-LIST_ISOS_DESC = """List available ISO images across the cluster.
-
-Parameters:
-node - Filter by node (optional)
-storage - Filter by storage pool (optional)
-
-Returns list of ISOs with filename, size, and storage location.
-"""
-
-LIST_TEMPLATES_DESC = """List available OS templates for container creation.
-
-Parameters:
-node - Filter by node (optional)
-storage - Filter by storage pool (optional)
-
-Returns list of templates (vztmpl) with name, size, and storage.
-Use the returned Volume ID with create_container's ostemplate parameter.
-"""
-
-DOWNLOAD_ISO_DESC = """Download an ISO image from a URL to Proxmox storage.
-
-Parameters:
-node* - Target node name
-storage* - Target storage pool (must support ISO content)
-url* - URL to download from
-filename* - Target filename (e.g. 'ubuntu-22.04-live-server-amd64.iso')
-checksum - Optional checksum for verification
-checksum_algorithm - Algorithm: sha256, sha512, md5 (default: sha256)
-
-Example:
-download_iso node='pve' storage='local' url='https://...' filename='ubuntu.iso'
-"""
-
-DELETE_ISO_DESC = """Delete an ISO or template from storage.
-
-Parameters:
-node* - Node name
-storage* - Storage pool name
-filename* - ISO/template filename to delete
-
-Example:
-delete_iso node='pve' storage='local' filename='old-distro.iso'
-"""
-
 # Backup and Restore tool descriptions
 LIST_BACKUPS_DESC = """List available backups across the cluster.
 

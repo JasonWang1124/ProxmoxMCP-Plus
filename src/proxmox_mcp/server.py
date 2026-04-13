@@ -32,7 +32,6 @@ from proxmox_mcp.tools.storage import StorageTools
 from proxmox_mcp.tools.cluster import ClusterTools
 from proxmox_mcp.tools.containers import ContainerTools
 from proxmox_mcp.tools.snapshots import SnapshotTools
-from proxmox_mcp.tools.iso import ISOTools
 from proxmox_mcp.tools.backup import BackupTools
 from proxmox_mcp.security import CommandPolicyGate
 from proxmox_mcp.tools.definitions import (
@@ -61,11 +60,6 @@ from proxmox_mcp.tools.definitions import (
     CREATE_SNAPSHOT_DESC,
     DELETE_SNAPSHOT_DESC,
     ROLLBACK_SNAPSHOT_DESC,
-    # ISO tools
-    LIST_ISOS_DESC,
-    LIST_TEMPLATES_DESC,
-    DOWNLOAD_ISO_DESC,
-    DELETE_ISO_DESC,
     # Backup tools
     LIST_BACKUPS_DESC,
     CREATE_BACKUP_DESC,
@@ -105,7 +99,6 @@ class ProxmoxMCPServer:
             command_policy=self.command_policy,
         )
         self.snapshot_tools = SnapshotTools(self.proxmox)
-        self.iso_tools = ISOTools(self.proxmox)
         self.backup_tools = BackupTools(self.proxmox)
 
         # Initialize MCP server with configured network settings for HTTP transports
@@ -417,43 +410,6 @@ class ProxmoxMCPServer:
             return self.snapshot_tools.rollback_snapshot(
                 node=node, vmid=vmid, snapname=snapname, vm_type=vm_type
             )
-
-        # ISO and Template tools
-        @self.mcp.tool(description=LIST_ISOS_DESC)
-        def list_isos(
-            node: Annotated[Optional[str], Field(description="Filter by node (optional)", default=None)] = None,
-            storage: Annotated[Optional[str], Field(description="Filter by storage pool (optional)", default=None)] = None,
-        ):
-            return self.iso_tools.list_isos(node=node, storage=storage)
-
-        @self.mcp.tool(description=LIST_TEMPLATES_DESC)
-        def list_templates(
-            node: Annotated[Optional[str], Field(description="Filter by node (optional)", default=None)] = None,
-            storage: Annotated[Optional[str], Field(description="Filter by storage pool (optional)", default=None)] = None,
-        ):
-            return self.iso_tools.list_templates(node=node, storage=storage)
-
-        @self.mcp.tool(description=DOWNLOAD_ISO_DESC)
-        def download_iso(
-            node: Annotated[str, Field(description="Target node name")],
-            storage: Annotated[str, Field(description="Target storage pool")],
-            url: Annotated[str, Field(description="URL to download from")],
-            filename: Annotated[str, Field(description="Target filename (e.g. 'ubuntu-22.04.iso')")],
-            checksum: Annotated[Optional[str], Field(description="Optional checksum", default=None)] = None,
-            checksum_algorithm: Annotated[str, Field(description="Algorithm: sha256, sha512, md5", default="sha256")] = "sha256",
-        ):
-            return self.iso_tools.download_iso(
-                node=node, storage=storage, url=url, filename=filename,
-                checksum=checksum, checksum_algorithm=checksum_algorithm
-            )
-
-        @self.mcp.tool(description=DELETE_ISO_DESC)
-        def delete_iso(
-            node: Annotated[str, Field(description="Node name")],
-            storage: Annotated[str, Field(description="Storage pool name")],
-            filename: Annotated[str, Field(description="ISO/template filename to delete")],
-        ):
-            return self.iso_tools.delete_iso(node=node, storage=storage, filename=filename)
 
         # Backup and Restore tools
         @self.mcp.tool(description=LIST_BACKUPS_DESC)
