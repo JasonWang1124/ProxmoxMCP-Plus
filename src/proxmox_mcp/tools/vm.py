@@ -293,6 +293,53 @@ class VMTools(ProxmoxTool):
         except Exception as e:
             self._handle_error(f"create VM {vmid}", e)
 
+    def update_vm_config(
+        self,
+        node: str,
+        vmid: str,
+        name: Optional[str] = None,
+        description: Optional[str] = None,
+        cores: Optional[int] = None,
+        memory: Optional[int] = None,
+        onboot: Optional[bool] = None,
+    ) -> List[Content]:
+        """Update a QEMU VM's config (name / description / cores / memory / onboot).
+
+        Only the fields you pass are touched. The rest stay as-is. CPU and memory
+        changes on a running VM use Proxmox hotplug where supported; otherwise
+        they apply on the next boot.
+        """
+        try:
+            # Verify VM exists before we touch anything
+            self.proxmox.nodes(node).qemu(vmid).status.current.get()
+
+            payload: dict = {}
+            if name is not None:
+                payload["name"] = name
+            if description is not None:
+                payload["description"] = description
+            if cores is not None:
+                payload["cores"] = cores
+            if memory is not None:
+                payload["memory"] = memory
+            if onboot is not None:
+                payload["onboot"] = 1 if onboot else 0
+
+            if not payload:
+                raise ValueError("At least one field must be provided to update")
+
+            self.proxmox.nodes(node).qemu(vmid).config.put(**payload)
+
+            changed = ", ".join(f"{k}={v}" for k, v in payload.items())
+            return [Content(type="text", text=f"✏️ VM {vmid} config updated: {changed}")]
+
+        except ValueError:
+            raise
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"VM {vmid} not found on node {node}")
+            self._handle_error(f"update VM {vmid} config", e)
+
     def start_vm(self, node: str, vmid: str) -> List[Content]:
         """Start a virtual machine.
         

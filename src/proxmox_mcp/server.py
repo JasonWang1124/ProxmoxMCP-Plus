@@ -39,6 +39,7 @@ from proxmox_mcp.tools.definitions import (
     GET_NODE_STATUS_DESC,
     GET_VMS_DESC,
     CREATE_VM_DESC,
+    UPDATE_VM_CONFIG_DESC,
     EXECUTE_VM_COMMAND_DESC,
     START_VM_DESC,
     STOP_VM_DESC,
@@ -156,6 +157,21 @@ class ProxmoxMCPServer:
         ):
             return self.vm_tools.create_vm(
                 node, vmid, name, cpus, memory, disk_size, storage, ostype, network_bridge
+            )
+
+        @self.mcp.tool(description=UPDATE_VM_CONFIG_DESC)
+        def update_vm_config(
+            node: Annotated[str, Field(description="Host node name (e.g. 'pve')")],
+            vmid: Annotated[str, Field(description="VM ID number (e.g. '100')")],
+            name: Annotated[Optional[str], Field(description="New display name (Proxmox label only)", default=None)] = None,
+            description: Annotated[Optional[str], Field(description="New VM description/notes", default=None)] = None,
+            cores: Annotated[Optional[int], Field(description="New CPU core count", ge=1, le=128, default=None)] = None,
+            memory: Annotated[Optional[int], Field(description="New memory size in MB", ge=16, le=524288, default=None)] = None,
+            onboot: Annotated[Optional[bool], Field(description="Start on host boot (true/false)", default=None)] = None,
+        ):
+            return self.vm_tools.update_vm_config(
+                node=node, vmid=vmid, name=name, description=description,
+                cores=cores, memory=memory, onboot=onboot,
             )
 
         @self.mcp.tool(description=EXECUTE_VM_COMMAND_DESC)

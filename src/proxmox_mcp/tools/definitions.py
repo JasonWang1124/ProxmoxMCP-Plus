@@ -134,6 +134,23 @@ RESTART_CONTAINER_DESC = """Restart LXC containers (reboot).
 selector: same grammar as start_container
 """
 
+UPDATE_VM_CONFIG_DESC = """Update a QEMU VM's config (rename / description / cores / memory / onboot).
+
+Parameters:
+node* - Host node name (e.g. 'pve')
+vmid* - VM ID number (e.g. '100')
+name - New VM display name (Proxmox label only, does not change guest hostname)
+description - New VM description/notes
+cores - New CPU core count
+memory - New memory size in MB
+onboot - Start on host boot (true/false)
+
+Only the fields you pass are touched. Others stay as-is.
+
+Example:
+update_vm_config node='pve' vmid='100' name='gitea-runner'
+"""
+
 UPDATE_CONTAINER_RESOURCES_DESC = """Update resources for one or more LXC containers.
 
 selector: same grammar as start_container
