@@ -923,3 +923,71 @@ class ContainerTools(ProxmoxTool):
 
         except Exception as e:
             return self._err("Failed to update container(s)", e)
+
+    def clone_container(
+        self,
+        node: str,
+        vmid: str,
+        newid: str,
+        hostname: Optional[str] = None,
+        full: bool = True,
+        description: Optional[str] = None,
+        target: Optional[str] = None,
+        storage: Optional[str] = None,
+        snapname: Optional[str] = None,
+    ) -> List[Content]:
+        """Clone an existing LXC container (or template) to a new VMID."""
+        try:
+            self.proxmox.nodes(node).lxc(vmid).status.current.get()
+
+            params: Dict[str, Any] = {"newid": newid, "full": 1 if full else 0}
+            if hostname: params["hostname"] = hostname
+            if description: params["description"] = description
+            if target: params["target"] = target
+            if storage: params["storage"] = storage
+            if snapname: params["snapname"] = snapname
+
+            upid = self.proxmox.nodes(node).lxc(vmid).clone.post(**params)
+            mode = "full" if full else "linked"
+            return [Content(type="text", text=(
+                f"🧬 Container {vmid} clone ({mode}) → new VMID {newid} initiated\n"
+                f"Task: {upid}"
+            ))]
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"Container {vmid} not found on node {node}")
+            return self._err(f"clone container {vmid}", e)
+
+    def update_container_config(
+        self,
+        node: str,
+        vmid: str,
+        hostname: Optional[str] = None,
+        description: Optional[str] = None,
+        onboot: Optional[bool] = None,
+    ) -> List[Content]:
+        """Update LXC container's non-resource config (hostname/description/onboot).
+
+        For CPU/memory/swap/disk, use `update_container_resources` instead.
+        Note: hostname change also updates /etc/hostname inside the guest on next boot.
+        """
+        try:
+            self.proxmox.nodes(node).lxc(vmid).status.current.get()
+
+            payload: Dict[str, Any] = {}
+            if hostname is not None: payload["hostname"] = hostname
+            if description is not None: payload["description"] = description
+            if onboot is not None: payload["onboot"] = 1 if onboot else 0
+
+            if not payload:
+                raise ValueError("At least one field must be provided to update")
+
+            self.proxmox.nodes(node).lxc(vmid).config.put(**payload)
+            changed = ", ".join(f"{k}={v}" for k, v in payload.items())
+            return [Content(type="text", text=f"✏️ Container {vmid} config updated: {changed}")]
+        except ValueError:
+            raise
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"Container {vmid} not found on node {node}")
+            return self._err(f"update container {vmid} config", e)

@@ -134,6 +134,48 @@ RESTART_CONTAINER_DESC = """Restart LXC containers (reboot).
 selector: same grammar as start_container
 """
 
+CLONE_VM_DESC = """Clone an existing QEMU VM or template to a new VMID.
+
+Parameters:
+node* - Source node name
+vmid* - Source VM ID
+newid* - New VM ID for the clone
+name - Display name for the clone
+full - True for full clone (default), False for linked clone (template only)
+description - Optional description
+target - Target node (for cluster cross-node clone)
+storage - Target storage pool (full clone only)
+snapname - Clone from a specific snapshot
+
+Example:
+clone_vm node='pve' vmid='9000' newid='201' name='web-2' full=True
+"""
+
+RESIZE_VM_DISK_DESC = """Grow a VM disk. Proxmox only allows growing, never shrinking.
+
+Parameters:
+node* - Host node name
+vmid* - VM ID
+disk* - Disk identifier (e.g. 'scsi0', 'virtio0', 'sata0')
+size* - '+5G' to add 5GiB, or '20G' to set absolute size
+
+After resize you must extend the partition + filesystem inside the guest OS.
+
+Example:
+resize_vm_disk node='pve' vmid='100' disk='scsi0' size='+10G'
+"""
+
+REBOOT_VM_DESC = """ACPI-style reboot a running VM (clean shutdown + start).
+
+Parameters:
+node* - Host node name
+vmid* - VM ID
+timeout - Optional seconds to wait for ACPI shutdown before forcing
+
+Different from reset_vm: reset is a hard hardware reset, this asks the guest
+OS to shut down cleanly first via ACPI signal.
+"""
+
 UPDATE_VM_CONFIG_DESC = """Update a QEMU VM's config (rename / description / cores / memory / onboot).
 
 Parameters:
@@ -149,6 +191,39 @@ Only the fields you pass are touched. Others stay as-is.
 
 Example:
 update_vm_config node='pve' vmid='100' name='gitea-runner'
+"""
+
+CLONE_CONTAINER_DESC = """Clone an existing LXC container or template to a new VMID.
+
+Parameters:
+node* - Source node name
+vmid* - Source container ID
+newid* - New container ID for the clone
+hostname - Hostname for the clone
+full - True for full clone (default), False for linked clone (template only)
+description - Optional description
+target - Target node
+storage - Target storage pool
+snapname - Clone from a specific snapshot
+
+Example:
+clone_container node='pve' vmid='9100' newid='201' hostname='web-2' full=True
+"""
+
+UPDATE_CONTAINER_CONFIG_DESC = """Update a LXC container's hostname / description / onboot.
+
+Parameters:
+node* - Host node name
+vmid* - Container ID
+hostname - New hostname (also updates /etc/hostname inside guest on next boot)
+description - New description/notes
+onboot - Start on host boot (true/false)
+
+For CPU/memory/swap/disk changes, use update_container_resources instead.
+Only the fields you pass are touched.
+
+Example:
+update_container_config node='pve' vmid='107' hostname='claire-backup-new'
 """
 
 UPDATE_CONTAINER_RESOURCES_DESC = """Update resources for one or more LXC containers.
@@ -285,6 +360,28 @@ vm_type - Type: 'qemu' or 'lxc' (default: 'qemu')
 
 Example:
 rollback_snapshot node='pve' vmid='100' snapname='before-update'
+"""
+
+# Task tool descriptions
+LIST_TASKS_DESC = """List recent Proxmox background tasks (backups, clones, start/stop, migrations, etc.).
+
+Parameters:
+node - Filter to a specific node (optional, default: all cluster tasks)
+limit - Max number of tasks to return (default: 20)
+errors_only - Only show tasks that ended with error (default: false)
+running_only - Only show currently running tasks (default: false)
+
+Returns task info including UPID (use with get_task_log to fetch output).
+"""
+
+GET_TASK_LOG_DESC = """Fetch the log output of a specific Proxmox task.
+
+Parameters:
+node* - Node where the task ran
+upid* - Task UPID (from list_tasks)
+limit - Max number of log lines (default: 200)
+
+Use this to diagnose failed backups, clones, migrations, etc.
 """
 
 # Backup and Restore tool descriptions

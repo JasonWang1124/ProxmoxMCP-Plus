@@ -40,6 +40,9 @@ from proxmox_mcp.tools.definitions import (
     GET_VMS_DESC,
     CREATE_VM_DESC,
     UPDATE_VM_CONFIG_DESC,
+    CLONE_VM_DESC,
+    RESIZE_VM_DISK_DESC,
+    REBOOT_VM_DESC,
     EXECUTE_VM_COMMAND_DESC,
     START_VM_DESC,
     STOP_VM_DESC,
@@ -51,11 +54,15 @@ from proxmox_mcp.tools.definitions import (
     STOP_CONTAINER_DESC,
     RESTART_CONTAINER_DESC,
     UPDATE_CONTAINER_RESOURCES_DESC,
+    UPDATE_CONTAINER_CONFIG_DESC,
+    CLONE_CONTAINER_DESC,
     CREATE_CONTAINER_DESC,
     DELETE_CONTAINER_DESC,
     EXECUTE_CONTAINER_COMMAND_DESC,
     GET_STORAGE_DESC,
     GET_CLUSTER_STATUS_DESC,
+    LIST_TASKS_DESC,
+    GET_TASK_LOG_DESC,
     # Snapshot tools
     LIST_SNAPSHOTS_DESC,
     CREATE_SNAPSHOT_DESC,
@@ -159,6 +166,40 @@ class ProxmoxMCPServer:
                 node, vmid, name, cpus, memory, disk_size, storage, ostype, network_bridge
             )
 
+        @self.mcp.tool(description=CLONE_VM_DESC)
+        def clone_vm(
+            node: Annotated[str, Field(description="Source node name")],
+            vmid: Annotated[str, Field(description="Source VM ID")],
+            newid: Annotated[str, Field(description="New VM ID for the clone")],
+            name: Annotated[Optional[str], Field(description="Display name for the clone", default=None)] = None,
+            full: Annotated[bool, Field(description="True for full clone, False for linked clone", default=True)] = True,
+            description: Annotated[Optional[str], Field(description="Optional description", default=None)] = None,
+            target: Annotated[Optional[str], Field(description="Target node (cluster only)", default=None)] = None,
+            storage: Annotated[Optional[str], Field(description="Target storage pool (full clone only)", default=None)] = None,
+            snapname: Annotated[Optional[str], Field(description="Clone from this snapshot", default=None)] = None,
+        ):
+            return self.vm_tools.clone_vm(
+                node=node, vmid=vmid, newid=newid, name=name, full=full,
+                description=description, target=target, storage=storage, snapname=snapname,
+            )
+
+        @self.mcp.tool(description=RESIZE_VM_DISK_DESC)
+        def resize_vm_disk(
+            node: Annotated[str, Field(description="Host node name")],
+            vmid: Annotated[str, Field(description="VM ID")],
+            disk: Annotated[str, Field(description="Disk identifier (e.g. 'scsi0', 'virtio0')")],
+            size: Annotated[str, Field(description="'+5G' to add 5GiB, or '20G' for absolute size")],
+        ):
+            return self.vm_tools.resize_vm_disk(node=node, vmid=vmid, disk=disk, size=size)
+
+        @self.mcp.tool(description=REBOOT_VM_DESC)
+        def reboot_vm(
+            node: Annotated[str, Field(description="Host node name")],
+            vmid: Annotated[str, Field(description="VM ID")],
+            timeout: Annotated[Optional[int], Field(description="Seconds to wait for ACPI shutdown", ge=1, le=600, default=None)] = None,
+        ):
+            return self.vm_tools.reboot_vm(node=node, vmid=vmid, timeout=timeout)
+
         @self.mcp.tool(description=UPDATE_VM_CONFIG_DESC)
         def update_vm_config(
             node: Annotated[str, Field(description="Host node name (e.g. 'pve')")],
@@ -230,6 +271,25 @@ class ProxmoxMCPServer:
         def get_cluster_status():
             return self.cluster_tools.get_cluster_status()
 
+        @self.mcp.tool(description=LIST_TASKS_DESC)
+        def list_tasks(
+            node: Annotated[Optional[str], Field(description="Filter by node (optional)", default=None)] = None,
+            limit: Annotated[int, Field(description="Max tasks to return", ge=1, le=500, default=20)] = 20,
+            errors_only: Annotated[bool, Field(description="Only show failed tasks", default=False)] = False,
+            running_only: Annotated[bool, Field(description="Only show running tasks", default=False)] = False,
+        ):
+            return self.cluster_tools.list_tasks(
+                node=node, limit=limit, errors_only=errors_only, running_only=running_only
+            )
+
+        @self.mcp.tool(description=GET_TASK_LOG_DESC)
+        def get_task_log(
+            node: Annotated[str, Field(description="Node where the task ran")],
+            upid: Annotated[str, Field(description="Task UPID (from list_tasks)")],
+            limit: Annotated[int, Field(description="Max log lines", ge=1, le=2000, default=200)] = 200,
+        ):
+            return self.cluster_tools.get_task_log(node=node, upid=upid, limit=limit)
+
         # Containers (LXC)
         class GetContainersPayload(BaseModel):
             node: Optional[str] = Field(None, description="Optional node name (e.g. 'pve1')")
@@ -276,6 +336,35 @@ class ProxmoxMCPServer:
         ):
             return self.container_tools.restart_container(
                selector=selector, timeout_seconds=timeout_seconds, format_style=format_style
+            )
+
+        @self.mcp.tool(description=CLONE_CONTAINER_DESC)
+        def clone_container(
+            node: Annotated[str, Field(description="Source node name")],
+            vmid: Annotated[str, Field(description="Source container ID")],
+            newid: Annotated[str, Field(description="New container ID for the clone")],
+            hostname: Annotated[Optional[str], Field(description="Hostname for the clone", default=None)] = None,
+            full: Annotated[bool, Field(description="True for full clone, False for linked clone", default=True)] = True,
+            description: Annotated[Optional[str], Field(description="Optional description", default=None)] = None,
+            target: Annotated[Optional[str], Field(description="Target node (cluster only)", default=None)] = None,
+            storage: Annotated[Optional[str], Field(description="Target storage pool", default=None)] = None,
+            snapname: Annotated[Optional[str], Field(description="Clone from this snapshot", default=None)] = None,
+        ):
+            return self.container_tools.clone_container(
+                node=node, vmid=vmid, newid=newid, hostname=hostname, full=full,
+                description=description, target=target, storage=storage, snapname=snapname,
+            )
+
+        @self.mcp.tool(description=UPDATE_CONTAINER_CONFIG_DESC)
+        def update_container_config(
+            node: Annotated[str, Field(description="Host node name")],
+            vmid: Annotated[str, Field(description="Container ID")],
+            hostname: Annotated[Optional[str], Field(description="New hostname", default=None)] = None,
+            description: Annotated[Optional[str], Field(description="New description", default=None)] = None,
+            onboot: Annotated[Optional[bool], Field(description="Start on host boot", default=None)] = None,
+        ):
+            return self.container_tools.update_container_config(
+                node=node, vmid=vmid, hostname=hostname, description=description, onboot=onboot,
             )
 
         @self.mcp.tool(description=UPDATE_CONTAINER_RESOURCES_DESC)

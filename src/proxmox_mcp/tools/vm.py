@@ -293,6 +293,100 @@ class VMTools(ProxmoxTool):
         except Exception as e:
             self._handle_error(f"create VM {vmid}", e)
 
+    def clone_vm(
+        self,
+        node: str,
+        vmid: str,
+        newid: str,
+        name: Optional[str] = None,
+        full: bool = True,
+        description: Optional[str] = None,
+        target: Optional[str] = None,
+        storage: Optional[str] = None,
+        snapname: Optional[str] = None,
+    ) -> List[Content]:
+        """Clone an existing VM or template to a new VMID.
+
+        Linked clones (`full=False`) only work if the source is a template.
+        Full clones duplicate all disks and work on any VM.
+        """
+        try:
+            self.proxmox.nodes(node).qemu(vmid).status.current.get()
+
+            params: dict = {"newid": newid, "full": 1 if full else 0}
+            if name: params["name"] = name
+            if description: params["description"] = description
+            if target: params["target"] = target
+            if storage: params["storage"] = storage
+            if snapname: params["snapname"] = snapname
+
+            upid = self.proxmox.nodes(node).qemu(vmid).clone.post(**params)
+            mode = "full" if full else "linked"
+            return [Content(type="text", text=(
+                f"🧬 VM {vmid} clone ({mode}) → new VMID {newid} initiated\n"
+                f"Task: {upid}"
+            ))]
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"VM {vmid} not found on node {node}")
+            self._handle_error(f"clone VM {vmid}", e)
+
+    def resize_vm_disk(
+        self,
+        node: str,
+        vmid: str,
+        disk: str,
+        size: str,
+    ) -> List[Content]:
+        """Grow a VM disk. Proxmox only supports growing, never shrinking.
+
+        size format: '+5G' adds 5 GiB, '20G' sets absolute size (must be >= current).
+        disk: e.g. 'scsi0', 'virtio0', 'sata0'.
+        """
+        try:
+            self.proxmox.nodes(node).qemu(vmid).status.current.get()
+
+            if not size or size[0] not in "+0123456789":
+                raise ValueError(f"Invalid size '{size}'. Use '+5G' or '20G'")
+
+            self.proxmox.nodes(node).qemu(vmid).resize.put(disk=disk, size=size)
+            return [Content(type="text", text=(
+                f"💽 VM {vmid} disk {disk} resized: {size}\n"
+                f"Note: guest OS must extend the partition/filesystem separately"
+            ))]
+        except ValueError:
+            raise
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"VM {vmid} not found on node {node}")
+            self._handle_error(f"resize VM {vmid} disk {disk}", e)
+
+    def reboot_vm(
+        self,
+        node: str,
+        vmid: str,
+        timeout: Optional[int] = None,
+    ) -> List[Content]:
+        """ACPI-style reboot: clean shutdown via guest ACPI, then start.
+
+        Unlike reset_vm which is a hard hardware reset, this asks the guest OS
+        to shut down gracefully first. Requires guest cooperation with ACPI.
+        """
+        try:
+            status = self.proxmox.nodes(node).qemu(vmid).status.current.get()
+            if status.get("status") != "running":
+                return [Content(type="text", text=f"⚠️ VM {vmid} is not running, cannot reboot")]
+
+            params: dict = {}
+            if timeout is not None:
+                params["timeout"] = timeout
+            upid = self.proxmox.nodes(node).qemu(vmid).status.reboot.post(**params)
+            return [Content(type="text", text=f"🔄 VM {vmid} ACPI reboot initiated\nTask: {upid}")]
+        except Exception as e:
+            if "does not exist" in str(e).lower() or "not found" in str(e).lower():
+                raise ValueError(f"VM {vmid} not found on node {node}")
+            self._handle_error(f"reboot VM {vmid}", e)
+
     def update_vm_config(
         self,
         node: str,
