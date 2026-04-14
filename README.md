@@ -2,7 +2,7 @@
 
 Streamable-HTTP MCP server for Proxmox VE — drop-in tool layer for Claude Code, Claude Desktop, or any MCP-compatible client.
 
-This fork trims the upstream [RekklesNA/ProxmoxMCP-Plus](https://github.com/RekklesNA/ProxmoxMCP-Plus) down to a single, long-running HTTP MCP server. The mcpo REST bridge, Docker scaffolding, and ISO/template tooling have been removed; the command policy gate, SSH-based container exec, and backup/snapshot tooling are kept.
+This fork trims the upstream [RekklesNA/ProxmoxMCP-Plus](https://github.com/RekklesNA/ProxmoxMCP-Plus) down to a single, long-running HTTP MCP server. The mcpo REST bridge and ISO/template tooling have been removed; the command policy gate, SSH-based container exec, and backup/snapshot tooling are kept. A minimal Docker setup ships for always-on deployment.
 
 Upstream chain: [canvrno/ProxmoxMCP](https://github.com/canvrno/ProxmoxMCP) → [RekklesNA/ProxmoxMCP-Plus](https://github.com/RekklesNA/ProxmoxMCP-Plus) → this fork.
 
@@ -20,7 +20,7 @@ Upstream chain: [canvrno/ProxmoxMCP](https://github.com/canvrno/ProxmoxMCP) → 
 | Backups | `list_backups`, `create_backup`, `restore_backup`, `delete_backup` |
 | Storage / Cluster | `get_storage`, `get_cluster_status` |
 
-Deliberately not included: ISO downloads (use the Proxmox UI), the OpenAPI/REST bridge, the Docker deployment. Add them back from upstream if you need them.
+Deliberately not included: ISO downloads (use the Proxmox UI) and the OpenAPI/REST bridge. Add them back from upstream if you need them.
 
 ## Quick start
 
@@ -44,16 +44,30 @@ Minimum fields to fill in:
 - `auth.user` — e.g. `claude@pve`
 - `auth.token_name`, `auth.token_value` — API token for that user
 
-The default transport is **Streamable HTTP** on `127.0.0.1:8812`. Start it:
+The default transport is **Streamable HTTP** on port `8812`. Pick one of:
+
+**Docker (recommended — always on):**
+
+```bash
+docker compose up -d --build
+docker compose logs -f proxmox-mcp
+```
+
+The container binds to `127.0.0.1:8812` on the host and mounts `proxmox-config/` read-only. `restart: unless-stopped` keeps it running after reboots.
+
+**Bare metal:**
 
 ```bash
 PROXMOX_MCP_CONFIG=$(pwd)/proxmox-config/config.json python main.py
 ```
 
-Health check (dev):
+Health check (post `initialize` first — Streamable HTTP needs a session):
 
 ```bash
-curl -sv http://127.0.0.1:8812/mcp
+curl -sv -X POST -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"initialize","params":{"protocolVersion":"2025-03-26","capabilities":{},"clientInfo":{"name":"curl","version":"1.0"}}}' \
+  http://127.0.0.1:8812/mcp
 ```
 
 ## Connect it to Claude Code / Desktop

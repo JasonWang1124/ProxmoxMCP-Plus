@@ -1,0 +1,12 @@
+services:
+  proxmox-mcp:
+    build: .
+    image: proxmox-mcp-plus:local
+    container_name: proxmox-mcp
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:8812:8812"
+    volumes:
+      - ./proxmox-config:/app/proxmox-config:ro
+    environment:
+      PROXMOX_MCP_CONFIG: /app/proxmox-config/config.json
